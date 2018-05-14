@@ -1,0 +1,16 @@
+{
+ "EXAMPLE_PATH3" : 
+ 		{
+ 		 "id" 			: "example_path_json",
+ 		 "docstring"	: "This is an example of what would be saved as the docstring for this example input's documentaiton",
+ 		 "val" 			: "/ex/path/to/this/dir",
+ 		 "type" 		: "str"		 
+ 		 },
+ "EXAMPLE_PATH4" : 
+ 		{
+ 		 "id" 			: "example_path2_json",
+ 		 "docstring"	: "This is an example of what would be saved as the docstring for this example input's documentaiton",
+ 		 "val" 			: "/ex/path/to/this/dir",
+ 		 "type" 		: "str"		 
+ 		 }
+}

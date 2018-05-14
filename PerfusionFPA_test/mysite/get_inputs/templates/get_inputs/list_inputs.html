@@ -1,0 +1,10 @@
+{% extends "personal/header.html" %}
+
+{% block content %}
+	{% for input in object_list %}
+		<h5>{{ input.date|date:"Y-m-d" }} <a href= 
+		"/get_inputs/{{input.id}}"> {{input.patient}}</a></h5>
+	{% endfor %}
+	<h6><a href="/get_inputs/manual_input">Click here to make a new entry</a></h6>
+	
+{% endblock %}

@@ -1,0 +1,36 @@
+{
+ "INPUT_FILE_PATHS" : { 
+ 		"example_path_json" :
+ 		{
+ 		 "id" 			: "example_path_json",
+ 		 "docstring"	: "This is an example of what would be saved as the docstring for this example input's documentaiton",
+ 		 "val" 			: "/ex/path/to/this/dir",
+ 		 "type" 		: "str",
+ 		 "units"		: "N/A"		 
+ 		 } },
+ 		 "example_path2_json" :
+  		 {
+ 		 "id" 			: "example_path2_json",
+ 		 "docstring"	: "This is an example of what would be saved as the docstring for this example input's documentaiton",
+ 		 "val" 			: "/ex/path/to/this/dir",
+ 		 "type" 		: "str",	
+ 		 "units"		: "N/A"	 
+ 		 } },
+ "INPUT_VOLUME1_PARAMS" : { 
+ 		"vol_idx" :
+ 		{
+ 		 "id" 			: "vol_idx",
+ 		 "docstring"	: "This is an example of what would be saved as the docstring for this example input's documentaiton",
+ 		 "val" 			: [1, 2],
+ 		 "type" 		: "int",
+ 		 "units"		: "N/A"
+ 		 } },
+ 		 "vol1_delta_time" :
+  		 {
+ 		 "id" 			: "vol1_delta_time",
+ 		 "docstring"	: "This is an example of what would be saved as the docstring for this example input's documentaiton",
+ 		 "val" 			: 5.21,
+ 		 "type" 		: "str",		 
+ 		 "units"		: "N/A"
+ 		 } }
+}

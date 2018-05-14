@@ -1,38 +1,77 @@
-# REQUIRES:
-# python 3.6
-# pydicom
-
 import os
 import pydicom
 from collections import defaultdict as df
-from pprint import pprint
+import re
+from shutil import copyfile
 
 def PatientSetup( src_dir, dest_dir ):
-    pass
-
-
-
+    fp_queue = mkdir_Acquisitions(src_dir, dest_dir, None)
+    mv_vol_dcm(fp_queue[0])
 
 # COMPONENTS
 def mkdir_Acquisitions( src_dir, dest_dir, params ):
+    # TODO:  CLEAN CODE AND BREAK UP COMPONENTS INTO SUBFUNCTIONS; CODE CAN ALSO BE GENERALIZED...
     # UNPACK PARAMETERS
-    # C:\Users\smalk\Desktop\EXAMPLE\DEST_DIR\AIDR3D_Standard_FC03\Acq01_Stress_CTP_AIDR3D_Standard_FC03\DICOM
-    # PATIENT_DIR............................\FILTERTYPE..........\ACQDD_COMMENT....FILTERTYPE..........\DICOM
-    cur_dest_patient_dir = os.path.join(dest_dir, params['PATIENT_DIR'])
-    cur_search_dcm_tags = params['SEARCH_DCM_TAGS']
-    template_acq_vol_dir = '{PATIENTDIR}/{FILTERTYPE}/Acq{ACQNUM}_{ACQTYPE}_{FILTERTYPE}/DICOM'
+    # C:\Users\smalk\Desktop\EXAMPLE\DEST_DIR\AIDR3D_Standard_FC03\Acq01_Stress\DICOM
+    # PATIENT_DIR............................\FILTERTYPE..........\ACQDD_COMMENT...\DICOM)
+    template_acq_vol_dir = '{PATIENTDIR}/{FILTERTYPE}/Acq{ACQNUM:02d}_{ACQTYPE}/DICOM/{VOLUMEDIR}/' # TODO: GENERALIZE
     
-    # FIND ALL DICOM VOLUME DIRECTORIES IN SOURCE DIRECTORY
-    src_dcm_vols = find_vol_dcm(src_dir, cur_search_dcm_tags)
+    # GET ALL VOLUMES:
+    all_dcm_vols = find_vol_dcm(src_dir, {0x00080060 : 'CT'})
+    sorted(all_dcm_vols)
     
-    # SEPARATE SOURCE DIRECTORY VOLUMES INTO ACQUISITIONS
-    sort_vol_dcm_acq(src_dcm_vols)
-    # MOVE EACH VOLUME TO DESTINATION DIRECTORY
-
-# TEMPLATES
-def mkdir_EXAMPLE( src_dir, dest_dir, params ):
-    pass
-
+    # FIND PROTOCOL AND FILTER TYPES:
+    protocol_types = set(tag[0x00181030].value for k, tag in all_dcm_vols.items())
+    filter_types = set(tag[0x7005100b].value.decode('utf-8').strip() for k, tag in all_dcm_vols.items())
+    kernal_types = set(tag[0x00181210].value.strip() for k, tag in all_dcm_vols.items())
+    recon_types = set(tag[0x70051006].value.decode('utf-8').strip() for k, tag in all_dcm_vols.items())
+    
+    # SORT VOLUMES INTO APPROPRIATE FOLDERS:
+    #  File hierarchy will be saved as a dictionary first, for future-proofing
+    #  Save image data in directories as we do now is not scalable
+    acq_dict = df(dict) # MORE INFORMATIVE
+    fp_queue = [ ] # SIMPLE LIST OF DICT ENTRIES, SIMPLIFIED TO USE FOR FILE TRANSFER
+    for rtype in recon_types: # TODO: GENERALIZE FOR LOOP AND FOLDER CRITERIA
+        for ktype in kernal_types:
+            for ftype in filter_types:
+                for ptype in protocol_types: 
+                    # FIND ALL VOLUMES IN SPECIFIC ACQUISITION (USUALLY ONLY 2, UNLESS CFA)
+                    acq_vols = find_vol_dcm(src_dir, {0x7005100b : ftype,
+                                                      0x00181030 : ptype,
+                                                      0x00181210 : ktype,
+                                                      0x70051006 : rtype,})
+                    sorted(acq_vols)
+                    
+                    # ENTER VOLUMES IN DICT acq_dict[cur_ftype][acqn_acqtype] 
+                    cur_ftype = ftype.replace(' ', '_') + '_'+ ktype
+                    cur_acqtype = re.search('(REST)|(STRESS)', ptype).group(0) + '_' + rtype
+                    
+                    if cur_ftype not in acq_dict.keys():
+                        # APPEND
+                        acq_dict[cur_ftype] = df(dict)
+                    
+                    cur_acqnum = 1
+                    cur_acq = 'Acq{:02d}'.format(cur_acqnum)
+                    while cur_acq in acq_dict[cur_ftype].keys():
+                        cur_acqnum += 1
+                        cur_acq = 'Acq{:02d}'.format(cur_acqnum)
+                        
+                    vol_num = 1
+                    for k, v in acq_vols.items():
+                        # CREATE PATHS
+                        cur_dest_path = template_acq_vol_dir.format(PATIENTDIR=dest_dir,
+                                                                    FILTERTYPE=cur_ftype,
+                                                                    ACQNUM=cur_acqnum,
+                                                                    ACQTYPE=cur_acqtype,
+                                                                    VOLUMEDIR=os.path.basename(k))
+                        acq_dict[cur_ftype][cur_acq][vol_num] = {'DEST_PATH' : cur_dest_path,
+                                                                 'SRC_PATH'  : k,
+                                                                 'TAGS_DCM'  : v, # DO WE WANT THE DCM TAGS TO BE SAVED HERE?
+                                                                }
+                        fp_queue.append({'DEST_PATH' : cur_dest_path,
+                                         'SRC_PATH'  : k,})
+                        vol_num += 1
+    return fp_queue, acq_dict
 
 # HELPER FUNCTIONS
 def find_vol_dcm( src_dir, search_dcm ):
@@ -52,20 +91,30 @@ def find_vol_dcm( src_dir, search_dcm ):
     return {os.path.dirname(fn) : pydicom.dcmread(fn) for fn in dcm_files 
             if all(tag_in_dcm(k, fn, search_dcm) for k in search_dcm.keys())}
     
-def sort_vol_dcm_acq( src_dcm_vols ):
-    # FIND ALL ACQUISITIONS
-    # SEPARATE AND NUMBER ACQUISITIONS
-    # acq_vol_dcm = { dcm_tags[0x002000D] : (fn, dcm_tags)
-    #               for fn, dcm_tags in src_dcm_vols}
-    acq_vol_dcm = df(list)
-    'ACQ'
-    #for fn, dcm_tags in src_dcm_vols.items():
-    #    acq_vol_dcm['.'.join(dcm_tags[0x0020000E].value.strip().split('.')[:-1])].append((fn, dcm_tags))
-    for fn, dcm_tags in src_dcm_vols.items():
-        acq_vol_dcm = 0
-
-def mv_vol_dcm( src_dir, dest_dir ):
-    #IGNORE BMP HERE
-    pass
+def mv_vol_dcm( fp_queue ):
+    def check_dir(dir_):
+        ls_dir = os.path.normpath(dir_).split(os.sep)
+        for i in range(len(ls_dir)):
+            cur_dir = os.sep.join(ls_dir[:i+1])
+            if not os.path.exists(cur_dir):
+                os.mkdir(cur_dir)
+                    
+    def mv_dcm(src_, dest_):
+        check_dir(dest_)
+        for f in os.listdir(src_):
+            if f.endswith('.dcm'):
+                src_f = os.path.join(src_, f)
+                dest_f = os.path.join(dest_, f)
+                print('MOVING {SRC} ----> {DEST}'.format(SRC=src_f,
+                                                         DEST=dest_f))
+                
+                copyfile(src_f, dest_f)
+                
+    for file_mv in fp_queue:
+        cur_src_path = file_mv['SRC_PATH']
+        cur_dest_path = file_mv['DEST_PATH']
+        mv_dcm(cur_src_path, cur_dest_path)
+        
+        
 
 

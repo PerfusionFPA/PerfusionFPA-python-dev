@@ -1,0 +1,9 @@
+{% extends "personal/header.html" %}
+
+{% block content %}
+	<h3>{{getinputs.patient}}</h3>
+	<h6>on {{getinputs.date}}</h6>
+	<h6> Volume 1 Path: {{getinputs.vol1_dcm_path}}</h6>
+	<h6> Volume 2 Path: {{getinputs.vol2_dcm_path}}</h6>
+	<h6> Volume Segmentation Path: {{getinputs.vol_seg_dcm_path}}</h6>
+{% endblock %}

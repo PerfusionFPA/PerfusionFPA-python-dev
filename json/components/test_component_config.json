@@ -1,0 +1,13 @@
+{
+ "TEST_COMPONENT" :
+ 		{
+ 		 "id"   		: "test_component",
+ 		 "docstring"	: "This is to test creating a component using this json documentation framework",
+ 		 "fp" 	        : "COMPONENT_FILE_PATH",
+ 		 "output_fp" 	: "/src/modules/components/test_component.py",
+ 		 "stream_fps"   : [
+ 		 					{"fp" : "/json/streams/test_stream1.json"},
+ 		 					{"fp" : "/json/streams/test_stream2.json"}
+ 		 				  ]
+ 		 }
+}
