@@ -5,14 +5,14 @@ import re
 from shutil import copyfile
 
 def PatientSetup( src_dir, dest_dir ):
-    if os.path.exists(dest_dir):
-        print('DESTINATION DIRECTORY ALREADY EXISTS')
-        return
-    fp_queue = mkdir_Acquisitions(src_dir, dest_dir, None)
-    mv_vol_dcm(fp_queue[0])
+    fp_queue = mkdir_Acquisitions(src_dir, dest_dir)[0]
+    mv_dcm_dir(fp_queue)
+    fp_queue = mkdir_MiscDCM(src_dir, dest_dir, {'SUB_FOLDER' : 'MISC'})
+    mv_dcm_dir(fp_queue)
+    
 
 # COMPONENTS
-def mkdir_Acquisitions( src_dir, dest_dir, params ):
+def mkdir_Acquisitions( src_dir, dest_dir, params=None ):
     # TODO:  CLEAN CODE AND BREAK UP COMPONENTS INTO SUBFUNCTIONS; CODE CAN ALSO BE GENERALIZED...
     # UNPACK PARAMETERS
     # C:\Users\smalk\Desktop\EXAMPLE\DEST_DIR\AIDR3D_Standard_FC03\Acq01_Stress\DICOM
@@ -77,6 +77,25 @@ def mkdir_Acquisitions( src_dir, dest_dir, params ):
     return fp_queue, acq_dict
 
 # HELPER FUNCTIONS
+
+def mkdir_MiscDCM(src_dir, dest_dir, params=None):
+    template_dest_dir = '{PATIENTDIR}/{MISCDIR}/'
+    misc_dcm_files = find_misc_dcm(src_dir)
+    fp_queue = [ ]
+    for k, v in misc_dcm_files:
+        cur_dest_path = template_dest_dir.format(PATIENTDIR=dest_dir,
+                                                 MISCDIR=params['SUB_FOLDER'])
+        fp_queue.append({'DEST_PATH'    : cur_dest_path,
+                         'SRC_PATH'     : k})
+    return fp_queue
+         
+
+def find_misc_dcm( src_dir ):
+    files = [os.path.join(dp, fn[1]) for dp, dn, fn in os.walk(src_dir) if len(fn) < 50]
+    dcm_files = [fn for fn in files if any(fn.endswith(ext) for ext in ['dcm'])]
+    return {os.path.dirname(fn) : pydicom.dcmread(fn) for fn in dcm_files} 
+
+
 def find_vol_dcm( src_dir, search_dcm ):
     def tag_in_dcm( k_, fn_, search_dcm_):
         cur_value = pydicom.dcmread(fn_)[k_].value
@@ -94,7 +113,7 @@ def find_vol_dcm( src_dir, search_dcm ):
     return {os.path.dirname(fn) : pydicom.dcmread(fn) for fn in dcm_files 
             if all(tag_in_dcm(k, fn, search_dcm) for k in search_dcm.keys())}
     
-def mv_vol_dcm( fp_queue ):
+def mv_dcm_dir( fp_queue ):
     def check_dir(dir_):
         ls_dir = os.path.normpath(dir_).split(os.sep)
         for i in range(len(ls_dir)):
@@ -103,6 +122,7 @@ def mv_vol_dcm( fp_queue ):
                 os.mkdir(cur_dir)
                     
     def mv_dcm(src_, dest_):
+        print('MOVING {SRC} -> {DEST}'.format(SRC=src_, dest=dest_))
         check_dir(dest_)
         for f in os.listdir(src_):
             if f.endswith('.dcm'):
@@ -110,9 +130,12 @@ def mv_vol_dcm( fp_queue ):
                 dest_f = os.path.join(dest_, f)
                 copyfile(src_f, dest_f)
                 
+                
     for file_mv in fp_queue:
         cur_src_path = file_mv['SRC_PATH']
         cur_dest_path = file_mv['DEST_PATH']
+        if not os.path.exists(cur_src_path):
+            continue
         mv_dcm(cur_src_path, cur_dest_path)
         
         
