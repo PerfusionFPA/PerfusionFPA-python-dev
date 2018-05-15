@@ -91,7 +91,7 @@ def mkdir_MiscDCM(src_dir, dest_dir, params=None):
          
 
 def find_misc_dcm( src_dir ):
-    files = [os.path.join(dp, fn[1]) for dp, dn, fn in os.walk(src_dir) if len(fn) < 50]
+    files = [os.path.join(dp, fn[1]) for dp, dn, fn in os.walk(src_dir) if 2 < len(fn) < 50]
     dcm_files = [fn for fn in files if any(fn.endswith(ext) for ext in ['dcm'])]
     return {os.path.dirname(fn) : pydicom.dcmread(fn) for fn in dcm_files} 
 
