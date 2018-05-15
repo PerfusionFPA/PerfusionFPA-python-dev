@@ -1,9 +1,37 @@
-from patient_setup import find_vol_dcm, mkdir_Acquisitions, PatientSetup
-from pprint import pprint
-from collections import defaultdict as df
+"""
+test.py
+Author:  Shant Malkasian
+Date: 05/14/2018
+Description:  This module provides preliminary tests for tools.system modules
+"""
 
-SRC_DIR = 'C:/Users/Shant Malkasian/Desktop/HUMAN_TRIALS/EXAMPLE/SRC_DIR'
-DEST_DIR = 'C:/Users/Shant Malkasian/Desktop/HUMAN_TRIALS/EXAMPLE/DEST_DIR'
+import os
+import pydicom
+from tools.system.patient_setup import find_vol_dcm, mkdir_Acquisitions, PatientSetup
+
+TEST_DIR = './../../../unittest/'
+SRC_DIR = os.path.join(TEST_DIR, 'SRC_DIR')
+DEST_DIR = os.path.join(TEST_DIR, 'DEST_DIR')
+
+if not os.path.exists(SRC_DIR):
+    os.mkdir(SRC_DIR)
+if not os.path.exists(DEST_DIR):
+    os.mkdir(DEST_DIR)
+
+def create_test_vol_dcm( dcm_dir, dcm_info, nslices = 5 ):
+    def add_dcm_info(cur_dcm_meta_, dcm_info_):
+        [cur_dcm_meta_.setdefault(k, v) for k, v in dcm_info_.items()]
+        return cur_dcm_meta_
+    if not os.path.exists(dcm_dir):
+        os.mkdir(dcm_dir)
+    fname_template = 'slice{:02d}.dcm'
+    for i in range(nslices):
+        cur_dcm_path = os.path.join(dcm_dir, fname_template.format(i))
+        cur_dcm_meta = add_dcm_info(pydicom.Dataset(), dcm_info)
+        pydicom.FileDataset(cur_dcm_path, {}, file_meta=cur_dcm_meta).save_as(cur_dcm_path)
+        
+        
+
 def test_find_vol_dcm():
     
     #  NOTE:  to search for specific DICOM tag, follow this paradigm:
@@ -18,6 +46,7 @@ def test_find_vol_dcm():
                   0x00181030 : 'CARDIAC REST CTP + CTA',
                   0x00080008 : ['ORIGINAL','PRIMARY', 'AXIAL'],
                   }
+    create_test_vol_dcm(os.path.join(SRC_DIR, 'TESTVOL1'), search_dcm)
     # Should only find TWO volumes with the provided search criteria
     assert(len(find_vol_dcm(SRC_DIR, search_dcm)) == 2)
     

@@ -1,3 +1,12 @@
+"""
+patient_setup.py
+Author:  Shant Malkasian
+Date: 05/14/2018
+Description:  This module contains functions that will be used to transfer files from a PACS directory to a file-server.
+Currently, PatientSetup is the main executable function, which organizes patient cardiac CT data from multiple exam images
+into similar acquisitions.  By organizing image data, calculating perfusion is more streamlined.
+"""
+
 import os
 import pydicom
 from collections import defaultdict as df
@@ -5,17 +14,54 @@ import re
 from shutil import copyfile
 
 def PatientSetup( src_dir, dest_dir ):
+    """
+    PatientSetup
+    This function organizes patient images into a readable format, to allow for streamlined processing
+    and easy prototyping.  Examples of using this code can be seen in test.py.
+    
+    INPUTS:
+    
+    src_dir         STR
+                    Path to source directory; each image volume is expected to be organized into
+                    its own folder, comprised of DICOM files, where each file is a DICOM file of
+                    a 2D slice of the image volume.  This directory should also be specific to
+                    one patient.  There is no check to ensure that each image volume is from the
+                    same patient (that should probably be added).
+                    
+    dest_dir        STR
+                    Path to destination directory; this path should be specific to a single
+                    patient.
+        
+    """
     if os.path.exists(dest_dir):
         print('DID NOT RUN... \nDESTINATION {DEST} ALREADY EXISTS'.format(DEST=dest_dir))
+        return
+    if not os.path.exists(src_dir):
+        print('DID NOT RUN... \nSOURCE {SRC} DOES NOT EXIST'.format(SRC=src_dir))
         return
     fp_queue = mkdir_Acquisitions(src_dir, dest_dir)[0]
     mv_dcm_dir(fp_queue)
     fp_queue = mkdir_MiscDCM(src_dir, dest_dir, {'SUB_FOLDER' : 'MISC'})
     mv_dcm_dir(fp_queue)
     
-
-# COMPONENTS
 def mkdir_Acquisitions( src_dir, dest_dir, params=None ):
+    """
+    mkdir_Acquisitions
+    
+    Base function to organize patient acquisitions into sub-folders for a patient.  Currently,
+    this function searches the following DICOM tags, in order to organize image data:
+    DCM NAME         DCM NUMBER
+    PROTOCOL TYPE    0x00181030         This tag describes whether the acquisition was a
+                                        STRESS exam or REST exam
+    FILTER TYPE      0x7005100b         The type of reconstruction filter applied (AIDR 3D usually)
+    RECON TYPE       0x70051006         Reconstruction type; HALF or FULL reconstruction
+    KERNEL TYPE      0x00181210         Kernel used for reconstruction (FC03 or FC12 usually)
+    
+    Although params is provided as an input, it serves no function currently.  It is just a place
+    holder for future-proofing, in case further functionality is desired.
+    
+    """
+    
     # TODO:  CLEAN CODE AND BREAK UP COMPONENTS INTO SUBFUNCTIONS; CODE CAN ALSO BE GENERALIZED...
     # UNPACK PARAMETERS
     # C:\Users\smalk\Desktop\EXAMPLE\DEST_DIR\AIDR3D_Standard_FC03\Acq01_Stress\DICOM
@@ -29,16 +75,16 @@ def mkdir_Acquisitions( src_dir, dest_dir, params=None ):
     # FIND PROTOCOL AND FILTER TYPES:
     protocol_types = set(tag[0x00181030].value for k, tag in all_dcm_vols.items())
     filter_types = set(tag[0x7005100b].value.decode('utf-8').strip() for k, tag in all_dcm_vols.items())
-    kernal_types = set(tag[0x00181210].value.strip() for k, tag in all_dcm_vols.items())
+    kernel_types = set(tag[0x00181210].value.strip() for k, tag in all_dcm_vols.items())
     recon_types = set(tag[0x70051006].value.decode('utf-8').strip() for k, tag in all_dcm_vols.items())
-    [sorted(protocol_types), sorted(filter_types), sorted(kernal_types), sorted(recon_types)]
+    [sorted(protocol_types), sorted(filter_types), sorted(kernel_types), sorted(recon_types)]
     # SORT VOLUMES INTO APPROPRIATE FOLDERS:
     #  File hierarchy will be saved as a dictionary first, for future-proofing
     #  Save image data in directories as we do now is not scalable
-    acq_dict = df(dict) # MORE INFORMATIVE
+    acq_dict = df(dict)
     fp_queue = [ ] # SIMPLE LIST OF DICT ENTRIES, SIMPLIFIED TO USE FOR FILE TRANSFER
     for rtype in recon_types: # TODO: GENERALIZE FOR LOOP AND FOLDER CRITERIA
-        for ktype in kernal_types:
+        for ktype in kernel_types:
             for ftype in filter_types:
                 for ptype in protocol_types: 
                     # FIND ALL VOLUMES IN SPECIFIC ACQUISITION (USUALLY ONLY 2, UNLESS CFA)
@@ -82,6 +128,11 @@ def mkdir_Acquisitions( src_dir, dest_dir, params=None ):
 # HELPER FUNCTIONS
 
 def mkdir_MiscDCM(src_dir, dest_dir, params=None):
+    """
+    mkdir_MiscDCM
+    
+    Base function to find and save DICOM image data that is NOT a volume image
+    """
     template_dest_dir = '{PATIENTDIR}/{MISCDIR}/'
     misc_dcm_files = find_misc_dcm(src_dir)
     fp_queue = [ ]
@@ -94,12 +145,27 @@ def mkdir_MiscDCM(src_dir, dest_dir, params=None):
          
 
 def find_misc_dcm( src_dir ):
+    """
+    find_misc_dcm
+    
+    Helper function to find miscellaneous DICOM files, or DICOM files that are not image volumes.
+    """
     dcm_files = [os.path.join(dp, f) for dp, dn, fn in os.walk(src_dir) for f in fn if f.endswith('dcm')]
-    return {os.path.dirname(fn) : pydicom.dcmread(fn) for fn in dcm_files if os.path.dirname(fn) not in find_vol_dcm( src_dir ).keys() }
+    dcm_vol_dirs = find_vol_dcm(src_dir).keys()
+    return {os.path.dirname(fn) : pydicom.dcmread(fn) for fn in dcm_files if os.path.dirname(fn) not in dcm_vol_dirs }
 
 
-def find_vol_dcm( src_dir, search_dcm={0x00180050 : '0.5'}): # ALL VOLUMES SHOULD HAVE A SLICE THICKNESS OF 0.5?
+def find_vol_dcm( src_dir, search_dcm={0x00180050 : '0.5'}):
+    """
+    find_vol_dcm
+    
+    Helper function to find directories of DICOM image volumes.  Currently, I have defined a 'DICOM
+    image volume' as any set of DICOM images, where the 'Slice Thickness'<0x00180050> is 0.5.  This
+    should be refined in the future, to be more robust.
+    """
     def tag_in_dcm( k_, fn_, search_dcm_):
+        if k_ not in pydicom.dcmread(fn_).keys():
+            return False
         cur_value = pydicom.dcmread(fn_)[k_].value
         # INSERT SPECIAL CASES HERE... SHOULD BE GENERALIZED
         if type(cur_value) == str:
@@ -116,6 +182,15 @@ def find_vol_dcm( src_dir, search_dcm={0x00180050 : '0.5'}): # ALL VOLUMES SHOUL
             if all(tag_in_dcm(k, fn, search_dcm) for k in search_dcm.keys())}
     
 def mv_dcm_dir( fp_queue ):
+    """
+    mv_dcm_dir
+    
+    Helper function to copy DICOM images from a source directory to a destination directory.
+    fp_queue is expected to be a list of dictionary entries.  Each dictionary should have
+    fields 'SRC_PATH' and 'DEST_PATH', where the source and destination paths to DICOM
+    image directories for the source and destinations to copy files to are provided,
+    respectively.
+    """
     def check_dir(dir_):
         ls_dir = os.path.normpath(dir_).split(os.sep)
         for i in range(len(ls_dir)):
