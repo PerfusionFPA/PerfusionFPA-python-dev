@@ -122,7 +122,7 @@ def mv_dcm_dir( fp_queue ):
                 os.mkdir(cur_dir)
                     
     def mv_dcm(src_, dest_):
-        print('MOVING {SRC} -> {DEST}'.format(SRC=src_, dest=dest_))
+        print('MOVING {SRC} -> {DEST}'.format(SRC=src_, DEST=dest_))
         check_dir(dest_)
         for f in os.listdir(src_):
             if f.endswith('.dcm'):
