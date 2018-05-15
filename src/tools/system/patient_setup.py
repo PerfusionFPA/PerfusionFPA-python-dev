@@ -82,7 +82,7 @@ def mkdir_MiscDCM(src_dir, dest_dir, params=None):
     template_dest_dir = '{PATIENTDIR}/{MISCDIR}/'
     misc_dcm_files = find_misc_dcm(src_dir)
     fp_queue = [ ]
-    for k, v in misc_dcm_files:
+    for k, v in misc_dcm_files.items():
         cur_dest_path = template_dest_dir.format(PATIENTDIR=dest_dir,
                                                  MISCDIR=params['SUB_FOLDER'])
         fp_queue.append({'DEST_PATH'    : cur_dest_path,
@@ -134,7 +134,7 @@ def mv_dcm_dir( fp_queue ):
     for file_mv in fp_queue:
         cur_src_path = file_mv['SRC_PATH']
         cur_dest_path = file_mv['DEST_PATH']
-        if not os.path.exists(cur_src_path):
+        if os.path.exists(cur_dest_path):
             continue
         mv_dcm(cur_src_path, cur_dest_path)
         
