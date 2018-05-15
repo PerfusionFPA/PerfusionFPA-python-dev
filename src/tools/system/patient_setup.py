@@ -5,6 +5,9 @@ import re
 from shutil import copyfile
 
 def PatientSetup( src_dir, dest_dir ):
+    if os.path.exists(dest_dir):
+        print('DID NOT RUN... \nDESTINATION {DEST} ALREADY EXISTS'.format(DEST=dest_dir))
+        return
     fp_queue = mkdir_Acquisitions(src_dir, dest_dir)[0]
     mv_dcm_dir(fp_queue)
     fp_queue = mkdir_MiscDCM(src_dir, dest_dir, {'SUB_FOLDER' : 'MISC'})
@@ -20,7 +23,7 @@ def mkdir_Acquisitions( src_dir, dest_dir, params=None ):
     template_acq_vol_dir = '{PATIENTDIR}/{FILTERTYPE}/Acq{ACQNUM:02d}_{ACQTYPE}/DICOM/{VOLUMEDIR}/' # TODO: GENERALIZE
     
     # GET ALL VOLUMES:
-    all_dcm_vols = find_vol_dcm(src_dir, {0x00080060 : 'CT'})
+    all_dcm_vols = find_vol_dcm(src_dir)
     sorted(all_dcm_vols)
     
     # FIND PROTOCOL AND FILTER TYPES:
@@ -91,12 +94,11 @@ def mkdir_MiscDCM(src_dir, dest_dir, params=None):
          
 
 def find_misc_dcm( src_dir ):
-    files = [os.path.join(dp, fn[1]) for dp, dn, fn in os.walk(src_dir) if 2 < len(fn) < 50]
-    dcm_files = [fn for fn in files if any(fn.endswith(ext) for ext in ['dcm'])]
-    return {os.path.dirname(fn) : pydicom.dcmread(fn) for fn in dcm_files} 
+    dcm_files = [os.path.join(dp, f) for dp, dn, fn in os.walk(src_dir) for f in fn if f.endswith('dcm')]
+    return {os.path.dirname(fn) : pydicom.dcmread(fn) for fn in dcm_files if os.path.dirname(fn) not in find_vol_dcm( src_dir ).keys() }
 
 
-def find_vol_dcm( src_dir, search_dcm ):
+def find_vol_dcm( src_dir, search_dcm={0x00180050 : '0.5'}): # ALL VOLUMES SHOULD HAVE A SLICE THICKNESS OF 0.5?
     def tag_in_dcm( k_, fn_, search_dcm_):
         cur_value = pydicom.dcmread(fn_)[k_].value
         # INSERT SPECIAL CASES HERE... SHOULD BE GENERALIZED
@@ -104,12 +106,12 @@ def find_vol_dcm( src_dir, search_dcm ):
             return cur_value.strip() == search_dcm_[k_].strip()
         elif type(cur_value) == bytes:
             return cur_value.decode('utf-8').strip() == search_dcm_[k_].strip()
-        elif len(cur_value) > 1:
+        elif type(cur_value) == pydicom.valuerep.DSfloat:
+            return str(cur_value).strip() == search_dcm_[k_].strip()
+        elif type(cur_value) == pydicom.multival.MultiValue:
             return all(c in search_dcm_[k_] for c in cur_value)
             
-    files = [os.path.join(dp, fn[1]) for dp, dn, fn in os.walk(src_dir) if len(fn) > 100] # THIS COULD BE CHANGED TO >= 100 TO INDICATE A VOLUME #TODO: GENERALIZE THIS
-    dcm_files = [fn for fn in files if any(fn.endswith(ext) for ext in ['dcm'])]
-           
+    dcm_files = [os.path.join(dp, f) for dp, dn, fn in os.walk(src_dir) for f in fn if f.endswith('dcm')]    
     return {os.path.dirname(fn) : pydicom.dcmread(fn) for fn in dcm_files 
             if all(tag_in_dcm(k, fn, search_dcm) for k in search_dcm.keys())}
     
