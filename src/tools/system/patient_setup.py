@@ -5,6 +5,9 @@ import re
 from shutil import copyfile
 
 def PatientSetup( src_dir, dest_dir ):
+    if os.path.exists(dest_dir):
+        print('DESTINATION DIRECTORY ALREADY EXISTS')
+        return
     fp_queue = mkdir_Acquisitions(src_dir, dest_dir, None)
     mv_vol_dcm(fp_queue[0])
 
@@ -25,7 +28,7 @@ def mkdir_Acquisitions( src_dir, dest_dir, params ):
     filter_types = set(tag[0x7005100b].value.decode('utf-8').strip() for k, tag in all_dcm_vols.items())
     kernal_types = set(tag[0x00181210].value.strip() for k, tag in all_dcm_vols.items())
     recon_types = set(tag[0x70051006].value.decode('utf-8').strip() for k, tag in all_dcm_vols.items())
-    
+    [sorted(protocol_types), sorted(filter_types), sorted(kernal_types), sorted(recon_types)]
     # SORT VOLUMES INTO APPROPRIATE FOLDERS:
     #  File hierarchy will be saved as a dictionary first, for future-proofing
     #  Save image data in directories as we do now is not scalable
@@ -85,7 +88,7 @@ def find_vol_dcm( src_dir, search_dcm ):
         elif len(cur_value) > 1:
             return all(c in search_dcm_[k_] for c in cur_value)
             
-    files = [os.path.join(dp, fn[0]) for dp, dn, fn in os.walk(src_dir) if len(fn) > 0] # THIS COULD BE CHANGED TO >= 100 TO INDICATE A VOLUME
+    files = [os.path.join(dp, fn[1]) for dp, dn, fn in os.walk(src_dir) if len(fn) > 100] # THIS COULD BE CHANGED TO >= 100 TO INDICATE A VOLUME #TODO: GENERALIZE THIS
     dcm_files = [fn for fn in files if any(fn.endswith(ext) for ext in ['dcm'])]
            
     return {os.path.dirname(fn) : pydicom.dcmread(fn) for fn in dcm_files 
@@ -105,9 +108,6 @@ def mv_vol_dcm( fp_queue ):
             if f.endswith('.dcm'):
                 src_f = os.path.join(src_, f)
                 dest_f = os.path.join(dest_, f)
-                print('MOVING {SRC} ----> {DEST}'.format(SRC=src_f,
-                                                         DEST=dest_f))
-                
                 copyfile(src_f, dest_f)
                 
     for file_mv in fp_queue:
