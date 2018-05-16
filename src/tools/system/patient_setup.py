@@ -150,7 +150,7 @@ def find_misc_dcm( src_dir ):
     
     Helper function to find miscellaneous DICOM files, or DICOM files that are not image volumes.
     """
-    dcm_files = [os.path.join(dp, f) for dp, dn, fn in os.walk(src_dir) for f in fn if f.endswith('dcm')]
+    dcm_files = [os.path.join(dp, f) for dp, dn, fn in os.walk(src_dir) for f in fn[:6] if f.endswith('dcm')]
     dcm_vol_dirs = find_vol_dcm(src_dir).keys()
     return {os.path.dirname(fn) : pydicom.dcmread(fn) for fn in dcm_files if os.path.dirname(fn) not in dcm_vol_dirs }
 
@@ -177,7 +177,7 @@ def find_vol_dcm( src_dir, search_dcm={0x00180050 : '0.5'}):
         elif type(cur_value) == pydicom.multival.MultiValue:
             return all(c in search_dcm_[k_] for c in cur_value)
             
-    dcm_files = [os.path.join(dp, f) for dp, dn, fn in os.walk(src_dir) for f in fn if f.endswith('dcm')]    
+    dcm_files = [os.path.join(dp, f) for dp, dn, fn in os.walk(src_dir) for f in fn[:6] if f.endswith('dcm')]    
     return {os.path.dirname(fn) : pydicom.dcmread(fn) for fn in dcm_files 
             if all(tag_in_dcm(k, fn, search_dcm) for k in search_dcm.keys())}
     
