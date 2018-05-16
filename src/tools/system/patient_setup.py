@@ -12,6 +12,7 @@ import pydicom
 from collections import defaultdict as df
 import re
 from shutil import copyfile
+from pprint import pprint
 
 def PatientSetup( src_dir, dest_dir ):
     """
@@ -41,8 +42,15 @@ def PatientSetup( src_dir, dest_dir ):
         return
     fp_queue = mkdir_Acquisitions(src_dir, dest_dir)[0]
     mv_dcm_dir(fp_queue)
+    n_vols_xferred = len(fp_queue)
     fp_queue = mkdir_MiscDCM(src_dir, dest_dir, {'SUB_FOLDER' : 'MISC'})
     mv_dcm_dir(fp_queue)
+    n_dcm_misc_xferred = len(fp_queue)
+
+    print('TRANSFER COMPLETE FOR: {DEST}\nVOLUMES TRANSFERRED: {NVOL}  |  MISC DCM TRANSFERED: {NDCMMISC}'.format(DEST=dest_dir,
+                                                                                                                  NVOL=n_vols_xferred,
+                                                                                                                  NDCMMISC=n_dcm_misc_xferred))
+    
     
 def mkdir_Acquisitions( src_dir, dest_dir, params=None ):
     """
@@ -133,12 +141,13 @@ def mkdir_MiscDCM(src_dir, dest_dir, params=None):
     
     Base function to find and save DICOM image data that is NOT a volume image
     """
-    template_dest_dir = '{PATIENTDIR}/{MISCDIR}/'
+    template_dest_dir = '{PATIENTDIR}/{MISCDIR}/{DCMDIR}'
     misc_dcm_files = find_misc_dcm(src_dir)
     fp_queue = [ ]
     for k, v in misc_dcm_files.items():
         cur_dest_path = template_dest_dir.format(PATIENTDIR=dest_dir,
-                                                 MISCDIR=params['SUB_FOLDER'])
+                                                 MISCDIR=params['SUB_FOLDER'],
+                                                 DCMDIR=os.path.basename(k))
         fp_queue.append({'DEST_PATH'    : cur_dest_path,
                          'SRC_PATH'     : k})
     return fp_queue
@@ -150,8 +159,8 @@ def find_misc_dcm( src_dir ):
     
     Helper function to find miscellaneous DICOM files, or DICOM files that are not image volumes.
     """
-    dcm_files = [os.path.join(dp, f) for dp, dn, fn in os.walk(src_dir) for f in fn[:6] if f.endswith('dcm')]
-    dcm_vol_dirs = find_vol_dcm(src_dir).keys()
+    dcm_files = [os.path.join(dp, f) for dp, dn, fn in os.walk(src_dir) for f in fn[:2] if f.endswith('dcm')]
+    dcm_vol_dirs = list(find_vol_dcm(src_dir).keys())
     return {os.path.dirname(fn) : pydicom.dcmread(fn) for fn in dcm_files if os.path.dirname(fn) not in dcm_vol_dirs }
 
 

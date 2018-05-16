@@ -26,4 +26,7 @@ def init_05_11_2018():
 
 
 if __name__ == '__main__':
-    init_05_11_2018()
+    #init_05_11_2018()
+    parent_dir = 'F:/bpziemer/HUMAN_PERFUSION_DATA/05_11_18_data_py_auto'
+    PatientSetup('X:/KPACS_Data/1.2.392.200036.9116.2.6.1.48.1216111650.1525997223.225594/',
+                 parent_dir + '/PATIENT_5/')
