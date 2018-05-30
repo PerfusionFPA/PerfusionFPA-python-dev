@@ -12,9 +12,8 @@ import pydicom
 from collections import defaultdict as df
 import re
 from shutil import copyfile
-from pprint import pprint
 
-def PatientSetup( src_dir, dest_dir ):
+def patient_setup( src_dir, dest_dir ):
     """
     PatientSetup
     This function organizes patient images into a readable format, to allow for streamlined processing
@@ -36,25 +35,26 @@ def PatientSetup( src_dir, dest_dir ):
     """
     if os.path.exists(dest_dir):
         print('DID NOT RUN... \nDESTINATION {DEST} ALREADY EXISTS'.format(DEST=dest_dir))
-        return
+        return False
     if not os.path.exists(src_dir):
         print('DID NOT RUN... \nSOURCE {SRC} DOES NOT EXIST'.format(SRC=src_dir))
-        return
-    fp_queue = mkdir_Acquisitions(src_dir, dest_dir)[0]
+        return False
+    fp_queue = mkdir_acquisitions(src_dir, dest_dir)[0]
     mv_dcm_dir(fp_queue)
     n_vols_xferred = len(fp_queue)
-    fp_queue = mkdir_MiscDCM(src_dir, dest_dir, {'SUB_FOLDER' : 'MISC'})
+    fp_queue = mkdir_misc_dcm(src_dir, dest_dir, {'SUB_FOLDER' : 'MISC'})
     mv_dcm_dir(fp_queue)
     n_dcm_misc_xferred = len(fp_queue)
 
     print('TRANSFER COMPLETE FOR: {DEST}\nVOLUMES TRANSFERRED: {NVOL}  |  MISC DCM TRANSFERED: {NDCMMISC}'.format(DEST=dest_dir,
                                                                                                                   NVOL=n_vols_xferred,
                                                                                                                   NDCMMISC=n_dcm_misc_xferred))
+    return True
     
     
-def mkdir_Acquisitions( src_dir, dest_dir, params=None ):
+def mkdir_acquisitions( src_dir, dest_dir, params=None ):
     """
-    mkdir_Acquisitions
+    mkdir_acquisitions
     
     Base function to organize patient acquisitions into sub-folders for a patient.  Currently,
     this function searches the following DICOM tags, in order to organize image data:
@@ -99,7 +99,8 @@ def mkdir_Acquisitions( src_dir, dest_dir, params=None ):
                     acq_vols = find_vol_dcm(src_dir, {0x7005100b : ftype,
                                                       0x00181030 : ptype,
                                                       0x00181210 : ktype,
-                                                      0x70051006 : rtype,})
+                                                      0x70051006 : rtype,
+                                                      })
                     sorted(acq_vols)
                     
                     # ENTER VOLUMES IN DICT acq_dict[cur_ftype][acqn_acqtype] 
@@ -135,9 +136,9 @@ def mkdir_Acquisitions( src_dir, dest_dir, params=None ):
 
 # HELPER FUNCTIONS
 
-def mkdir_MiscDCM(src_dir, dest_dir, params=None):
+def mkdir_misc_dcm(src_dir, dest_dir, params=None):
     """
-    mkdir_MiscDCM
+    mkdir_misc_dcm
     
     Base function to find and save DICOM image data that is NOT a volume image
     """

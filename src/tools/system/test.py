@@ -6,60 +6,74 @@ Description:  This module provides preliminary tests for tools.system modules
 """
 
 import os
+import shutil
 import pydicom
-from tools.system.patient_setup import find_vol_dcm, mkdir_Acquisitions, PatientSetup
+import unittest
 
-TEST_DIR = './../../../unittest/'
-SRC_DIR = os.path.join(TEST_DIR, 'SRC_DIR')
-DEST_DIR = os.path.join(TEST_DIR, 'DEST_DIR')
+from tools.system.patient_setup import find_vol_dcm, mkdir_acquisitions, patient_setup
 
-if not os.path.exists(SRC_DIR):
-    os.mkdir(SRC_DIR)
-if not os.path.exists(DEST_DIR):
-    os.mkdir(DEST_DIR)
 
 def create_test_vol_dcm( dcm_dir, dcm_info, nslices = 5 ):
-    def add_dcm_info(cur_dcm_meta_, dcm_info_):
-        [cur_dcm_meta_.setdefault(k, v) for k, v in dcm_info_.items()]
-        return cur_dcm_meta_
+    def mk_dcm(dcm_path, meta):
+        file_meta = pydicom.Dataset()
+        file_meta.MediaStorageSOPClassUID = '1.2.840.10008.5.1.4.1.1.2'
+        file_meta.MediaStorageSOPInstanceUID = "1.2.3"
+        file_meta.ImplementationClassUID = "1.2.3.4"
+        ds = pydicom.FileDataset(dcm_path, {}, file_meta=file_meta, preamble=b"\0" * 128)
+        ds.is_little_endian = True
+        ds.is_implicit_VR = True
+        [ds.add_new(k,'LO', v) for k, v in meta.items()]
+        ds.save_as(dcm_path)
+        
     if not os.path.exists(dcm_dir):
         os.mkdir(dcm_dir)
-    fname_template = 'slice{:02d}.dcm'
+    fname_template = '{:04d}.dcm'
     for i in range(nslices):
         cur_dcm_path = os.path.join(dcm_dir, fname_template.format(i))
-        cur_dcm_meta = add_dcm_info(pydicom.Dataset(), dcm_info)
-        pydicom.FileDataset(cur_dcm_path, {}, file_meta=cur_dcm_meta).save_as(cur_dcm_path)
-        
-        
+        mk_dcm(cur_dcm_path, dcm_info)
 
-def test_find_vol_dcm():
-    
-    #  NOTE:  to search for specific DICOM tag, follow this paradigm:
-    #  TAG          -> VALUE 
-    #  (7005, 1006) -> 'HALF'
-    #  TO SEARCH CONVERT TAG ABOVE TO:
-    #  0x70051006
-    
-    #             TAG          VALUE
-    search_dcm = {0x7005100b : 'AIDR 3D STD',
-                  0x70051006 : 'FULL',
-                  0x00181030 : 'CARDIAC REST CTP + CTA',
-                  0x00080008 : ['ORIGINAL','PRIMARY', 'AXIAL'],
-                  }
-    create_test_vol_dcm(os.path.join(SRC_DIR, 'TESTVOL1'), search_dcm)
-    # Should only find TWO volumes with the provided search criteria
-    assert(len(find_vol_dcm(SRC_DIR, search_dcm)) == 2)
-    
-def test_mkdir_Acquisitions():
-    fp_queue, acq_dict = mkdir_Acquisitions(SRC_DIR, DEST_DIR, None)
-    assert(len(fp_queue) == 7)
-    assert(len(acq_dict['AIDR_3D_STD_FC03']) == 3)
+class PatientSetup(unittest.TestCase):
+    def setUp(self):
+        self.test_dir = './../../../unittest/'
+        self.src_dir = os.path.join(self.test_dir, 'src_dir')
+        self.dest_dir = os.path.join(self.test_dir, 'dest_dir')
+        self.dcm_tags = {0x7005100b : 'AIDR 3D STD',
+                         0x70051006 : 'FULL',
+                         0x00181030 : 'CARDIAC REST CTP + CTA',
+                         0x00080008 : ['ORIGINAL','PRIMARY', 'AXIAL'],
+                         0x00180050 : '0.5',
+                         0x00181210 : 'FC03'
+                         }
+        if not os.path.exists(self.test_dir):
+            os.mkdir(self.test_dir)
+        if not os.path.exists(self.src_dir):
+            os.mkdir(self.src_dir)
 
-def test_PatientSetup():
-    dest_dir = 'C:/Users/Shant Malkasian/Desktop/HUMAN_TRIALS/EXAMPLE/PATIENT_1'
-    PatientSetup(SRC_DIR, dest_dir )
+        self.n_slices = 50
+        self.n_acqs = 5
+        for i in range(self.n_acqs):
+            create_test_vol_dcm(os.path.join(self.src_dir, 'testvol{}'.format(i)), self.dcm_tags, self.n_slices)
+    
+    def tearDown(self):
+        shutil.rmtree(self.test_dir)
+    
+    def test_find_vol_dcm_default(self):
+        self.assertEqual(len(find_vol_dcm(self.src_dir, self.dcm_tags)), self.n_acqs)
+    
+    def test_find_vol_dcm_none(self):
+        self.assertEqual(len(find_vol_dcm(self.src_dir, {0x7005100b : 'NONE'})), 0)
+    
+    def test_mkdir_acquisitions(self):
+        fp_queue, acq_dict = mkdir_acquisitions(self.src_dir, self.dest_dir, None)
+        self.assertEqual(len(fp_queue), self.n_acqs)
+        self.assertEqual(len(acq_dict['AIDR_3D_STD_FC03']), 1)
+    
+    def test_PatientSetup(self):
+        self.assertTrue(patient_setup(self.src_dir, self.dest_dir))
+        self.assertFalse(patient_setup(self.src_dir, self.dest_dir))
+    
+    
+
 
 if __name__ == '__main__':
-    test_find_vol_dcm()
-    test_mkdir_Acquisitions()
-    test_PatientSetup()
+    unittest.main()
