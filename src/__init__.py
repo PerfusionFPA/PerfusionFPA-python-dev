@@ -1,5 +1,3 @@
-'''
-Created on May 14, 2018
+import init_patients
 
-@author: Shant Malkasian
-'''
+

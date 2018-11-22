@@ -34,10 +34,10 @@ def patient_setup( src_dir, dest_dir ):
         
     """
     if os.path.exists(dest_dir):
-        print('DID NOT RUN... \nDESTINATION {DEST} ALREADY EXISTS'.format(DEST=dest_dir))
+        print('patient_setup: FAILED \nDESTINATION DIRECTORY: {DEST} ALREADY EXISTS'.format(DEST=dest_dir))
         return False
     if not os.path.exists(src_dir):
-        print('DID NOT RUN... \nSOURCE {SRC} DOES NOT EXIST'.format(SRC=src_dir))
+        print('patient_setup: FAILED \nSOURCE DIRECTORY: {SRC} DOES NOT EXIST'.format(SRC=src_dir))
         return False
     fp_queue = mkdir_acquisitions(src_dir, dest_dir)[0]
     mv_dcm_dir(fp_queue)
