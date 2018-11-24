@@ -12,6 +12,7 @@ import pydicom
 from collections import defaultdict as df
 import re
 from shutil import copyfile
+import glob
 
 def patient_setup( src_dir, dest_dir ):
     """
@@ -67,6 +68,8 @@ def mkdir_acquisitions( src_dir, dest_dir, params=None ):
     
     Although params is provided as an input, it serves no function currently.  It is just a place
     holder for future-proofing, in case further functionality is desired.
+    
+    TODO: RECODE TO PARSE DCM TAGS INTO SQL SERVER
     
     """
     
@@ -225,6 +228,23 @@ def mv_dcm_dir( fp_queue ):
             continue
         mv_dcm(cur_src_path, cur_dest_path)
         
-        
+
+def get_dcm_tag( path_dcm, tag ):
+    """
+    get_dcm_tag
+    
+    Helper function to search DICOM image for specified tag.  path_dcm can be the path to either a DICOM folder or DICOM image file.
+    """
+    if os.path.isdir(path_dcm):
+        path_dcm = glob.glob(path_dcm + '/*.dcm')[0]
+    if tag in pydicom.dcmread(path_dcm).keys():
+        return pydicom.dcmread(path_dcm)[tag].value, pydicom.dcmread(path_dcm)[tag].keyword
+    return None, None
+    
+
+if __name__ == '__main__':
+    test_dir = 'C:/Users/smalk/Desktop/EXAMPLE/SRC_DIR/1.2.392.200036.9116.2.1216111650.1516935725.5.1065400001.1'
+    test_tag, test_key = get_dcm_tag(test_dir, 0x00180050)
+    print(test_tag, test_key)
 
 
